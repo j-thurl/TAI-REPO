@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WHOOP + Screen Time Score</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <h1>WHOOP + Screen Time Score</h1>
+      <p class="subtitle">
+        Connect your WHOOP and phone endpoints once, then sync daily data automatically (no manual entry required).
+      </p>
+
+      <section class="card" aria-labelledby="autosync-title">
+        <h2 id="autosync-title">Auto-sync data sources (optional)</h2>
+        <p class="hint">
+          Provide endpoints that return today's WHOOP + phone usage JSON. We save these URLs in your browser.
+        </p>
+        <label>
+          WHOOP endpoint URL
+          <input type="url" id="whoopEndpoint" placeholder="https://your-service.example.com/whoop/today" />
+        </label>
+
+        <label>
+          Phone usage endpoint URL
+          <input type="url" id="screenEndpoint" placeholder="https://your-service.example.com/screentime/today" />
+        </label>
+
+        <label>
+          Optional API key / bearer token
+          <input type="password" id="apiToken" placeholder="paste token if required" />
+        </label>
+
+        <div class="button-row">
+          <button type="button" id="syncButton">Sync connected data</button>
+          <button type="button" id="saveSources" class="secondary">Save source settings</button>
+        </div>
+        <p id="sync-status" class="hint" aria-live="polite"></p>
+      </section>
+
+      <form id="score-form" class="card" novalidate>
+        <label>
+          WHOOP Recovery (%)
+          <input type="number" id="recovery" min="0" max="100" step="1" required />
+        </label>
+
+        <label>
+          WHOOP Sleep Performance (%)
+          <input type="number" id="sleep" min="0" max="100" step="1" required />
+        </label>
+
+        <label>
+          WHOOP Day Strain (0 - 21)
+          <input type="number" id="strain" min="0" max="21" step="0.1" required />
+        </label>
+
+        <fieldset>
+          <legend>Phone Screen Time (hours)</legend>
+          <label>
+            Social media time (Instagram, TikTok, X, etc.)
+            <input type="number" id="socialTime" min="0" max="24" step="0.1" required />
+          </label>
+
+          <label>
+            Other screen time (work, maps, reading, messages, etc.)
+            <input type="number" id="otherTime" min="0" max="24" step="0.1" required />
+          </label>
+        </fieldset>
+
+        <button type="submit">Calculate Score</button>
+      </form>
+
+      <section id="result" class="result hidden" aria-live="polite">
+        <h2>Your score: <span id="score-value">0</span>/100</h2>
+        <p id="score-label"></p>
+        <ul>
+          <li>Recovery contribution: <span id="recovery-score"></span></li>
+          <li>Sleep contribution: <span id="sleep-score"></span></li>
+          <li>Strain contribution: <span id="strain-score"></span></li>
+          <li>Screen time contribution: <span id="screen-score"></span></li>
+          <li>Social media penalty signal: <span id="social-signal"></span></li>
+          <li>Total phone usage: <span id="total-screen-time"></span></li>
+        </ul>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
