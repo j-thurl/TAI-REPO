@@ -1,3 +1,5 @@
+const NORMAL_PHONE_MINUTES_PER_WAKING_HOUR = 45;
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
@@ -6,20 +8,50 @@ function toNumber(input) {
   return Number.parseFloat(input);
 }
 
+function timeToMinutes(timeValue) {
+  const [hour, minute] = timeValue.split(":").map((v) => Number.parseInt(v, 10));
+  return hour * 60 + minute;
+}
+
+function wakingHoursBetween(wakeTime, bedTime) {
+  const wakeMinutes = timeToMinutes(wakeTime);
+  const bedMinutes = timeToMinutes(bedTime);
+  let delta = bedMinutes - wakeMinutes;
+
+  if (delta <= 0) {
+    delta += 24 * 60;
+  }
+
+  return delta / 60;
+}
+
 function scoreFromStrain(strain) {
   const centered = 100 - Math.abs(strain - 13) * 8;
   return clamp(centered, 0, 100);
-}
-
-function scoreFromScreenTime(socialHours, otherHours) {
-  const weightedHours = socialHours * 1.7 + otherHours * 0.8;
-  return clamp(100 - weightedHours * 7, 0, 100);
 }
 
 function socialUsageSignal(socialHours, totalHours) {
   if (totalHours <= 0) return 100;
   const socialRatio = socialHours / totalHours;
   return clamp(100 - socialRatio * 100, 0, 100);
+}
+
+function screenScoreFromDayShare(totalPhoneHours, wakingHours, socialHours) {
+  const baselineShare = NORMAL_PHONE_MINUTES_PER_WAKING_HOUR / 60;
+  const actualShare = totalPhoneHours / wakingHours;
+  const overBaselineRatio = actualShare / baselineShare;
+
+  // At or below baseline keeps full score. Above baseline drops progressively.
+  const usageScore = clamp(100 - Math.max(0, (overBaselineRatio - 1) * 100), 0, 100);
+  const socialSignal = socialUsageSignal(socialHours, totalPhoneHours);
+  const blendedScore = usageScore * 0.8 + socialSignal * 0.2;
+
+  return {
+    score: clamp(blendedScore, 0, 100),
+    actualShare,
+    baselineShare,
+    socialSignal,
+  };
 }
 
 function getLabel(score) {
@@ -34,6 +66,8 @@ function parseWhoopPayload(payload) {
     recovery: toNumber(payload.recovery),
     sleep: toNumber(payload.sleepPerformance),
     strain: toNumber(payload.dayStrain),
+    wakeTime: payload.wakeTime,
+    bedTime: payload.bedTime,
   };
 }
 
@@ -58,6 +92,8 @@ const apiTokenNode = document.getElementById("apiToken");
 const syncButton = document.getElementById("syncButton");
 const saveSourcesButton = document.getElementById("saveSources");
 
+const wakeTimeNode = document.getElementById("wakeTime");
+const bedTimeNode = document.getElementById("bedTime");
 const recoveryNode = document.getElementById("recovery");
 const sleepNode = document.getElementById("sleep");
 const strainNode = document.getElementById("strain");
@@ -68,6 +104,9 @@ const recoveryScoreNode = document.getElementById("recovery-score");
 const sleepScoreNode = document.getElementById("sleep-score");
 const strainScoreNode = document.getElementById("strain-score");
 const screenScoreNode = document.getElementById("screen-score");
+const wakingHoursNode = document.getElementById("waking-hours");
+const dayPhoneShareNode = document.getElementById("day-phone-share");
+const baselineShareNode = document.getElementById("baseline-share");
 const socialSignalNode = document.getElementById("social-signal");
 const totalScreenTimeNode = document.getElementById("total-screen-time");
 
@@ -139,6 +178,14 @@ async function syncConnectedData() {
     socialTimeNode.value = String(clamp(screen.socialTime, 0, 24));
     otherTimeNode.value = String(clamp(screen.otherTime, 0, 24));
 
+    if (typeof whoop.wakeTime === "string" && /^\d{2}:\d{2}$/.test(whoop.wakeTime)) {
+      wakeTimeNode.value = whoop.wakeTime;
+    }
+
+    if (typeof whoop.bedTime === "string" && /^\d{2}:\d{2}$/.test(whoop.bedTime)) {
+      bedTimeNode.value = whoop.bedTime;
+    }
+
     syncStatus.textContent = "Sync complete. Score updated from connected data.";
     form.requestSubmit();
   } catch (error) {
@@ -149,11 +196,19 @@ async function syncConnectedData() {
 function calculateScore(event) {
   event.preventDefault();
 
+  const wakeTime = wakeTimeNode.value;
+  const bedTime = bedTimeNode.value;
   const recovery = clamp(toNumber(recoveryNode.value), 0, 100);
   const sleep = clamp(toNumber(sleepNode.value), 0, 100);
   const strain = clamp(toNumber(strainNode.value), 0, 21);
   const socialTime = clamp(toNumber(socialTimeNode.value), 0, 24);
   const otherTime = clamp(toNumber(otherTimeNode.value), 0, 24);
+
+  if (!wakeTime || !bedTime) {
+    scoreLabel.textContent = "Please enter wake time and bed time.";
+    result.classList.remove("hidden");
+    return;
+  }
 
   if ([recovery, sleep, strain, socialTime, otherTime].some((n) => Number.isNaN(n))) {
     scoreLabel.textContent = "Please enter valid numbers in all fields.";
@@ -169,19 +224,32 @@ function calculateScore(event) {
     return;
   }
 
+  const wakingHours = wakingHoursBetween(wakeTime, bedTime);
+
+  if (wakingHours <= 0 || wakingHours > 24) {
+    scoreLabel.textContent = "Please enter a valid wake/bed schedule.";
+    result.classList.remove("hidden");
+    return;
+  }
+
+  if (totalScreenTime > wakingHours) {
+    scoreLabel.textContent = "Phone time cannot exceed waking hours.";
+    result.classList.remove("hidden");
+    return;
+  }
+
   const recoveryScore = recovery;
   const sleepScore = sleep;
   const strainScore = scoreFromStrain(strain);
-  const screenScore = scoreFromScreenTime(socialTime, otherTime);
+  const screenMetrics = screenScoreFromDayShare(totalScreenTime, wakingHours, socialTime);
 
   const finalScore =
     recoveryScore * 0.35 +
     sleepScore * 0.25 +
     strainScore * 0.2 +
-    screenScore * 0.2;
+    screenMetrics.score * 0.2;
 
   const roundedScore = Math.round(clamp(finalScore, 0, 100));
-  const socialSignal = Math.round(socialUsageSignal(socialTime, totalScreenTime));
 
   scoreValue.textContent = String(roundedScore);
   scoreLabel.textContent = getLabel(roundedScore);
@@ -189,8 +257,11 @@ function calculateScore(event) {
   recoveryScoreNode.textContent = `${Math.round(recoveryScore)} / 100`;
   sleepScoreNode.textContent = `${Math.round(sleepScore)} / 100`;
   strainScoreNode.textContent = `${Math.round(strainScore)} / 100`;
-  screenScoreNode.textContent = `${Math.round(screenScore)} / 100`;
-  socialSignalNode.textContent = `${socialSignal} / 100`;
+  screenScoreNode.textContent = `${Math.round(screenMetrics.score)} / 100`;
+  wakingHoursNode.textContent = `${wakingHours.toFixed(1)}h`;
+  dayPhoneShareNode.textContent = `${(screenMetrics.actualShare * 100).toFixed(1)}%`;
+  baselineShareNode.textContent = `${(screenMetrics.baselineShare * 100).toFixed(1)}%`;
+  socialSignalNode.textContent = `${Math.round(screenMetrics.socialSignal)} / 100`;
   totalScreenTimeNode.textContent = `${totalScreenTime.toFixed(1)}h`;
 
   result.classList.remove("hidden");

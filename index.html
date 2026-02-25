@@ -42,6 +42,17 @@
 
       <form id="score-form" class="card" novalidate>
         <label>
+          Wake time
+          <input type="time" id="wakeTime" required />
+        </label>
+
+        <label>
+          Bed time
+          <input type="time" id="bedTime" required />
+          <span class="hint">If bedtime is after midnight, keep the same clock time (example: wake 07:00, bed 00:30).</span>
+        </label>
+
+        <label>
           WHOOP Recovery (%)
           <input type="number" id="recovery" min="0" max="100" step="1" required />
         </label>
@@ -79,7 +90,10 @@
           <li>Recovery contribution: <span id="recovery-score"></span></li>
           <li>Sleep contribution: <span id="sleep-score"></span></li>
           <li>Strain contribution: <span id="strain-score"></span></li>
-          <li>Screen time contribution: <span id="screen-score"></span></li>
+          <li>Screen-time contribution: <span id="screen-score"></span></li>
+          <li>Waking hours: <span id="waking-hours"></span></li>
+          <li>Phone share of waking day: <span id="day-phone-share"></span></li>
+          <li>Baseline phone share (45 min/waking hour): <span id="baseline-share"></span></li>
           <li>Social media penalty signal: <span id="social-signal"></span></li>
           <li>Total phone usage: <span id="total-screen-time"></span></li>
         </ul>
