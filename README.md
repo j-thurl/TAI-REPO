@@ -13,6 +13,43 @@ Then open: `http://localhost:8787`
 
 Use **Use local demo endpoints** in the app, then click **Sync connected data**.
 
+## Windows PowerShell fix (for `running scripts is disabled`)
+If PowerShell shows this at startup:
+
+```
+...profile.ps1 cannot be loaded because running scripts is disabled on this system
+```
+
+that error is from your PowerShell profile, not from this app. Use one of these options:
+
+### Option A (recommended): open PowerShell without loading your profile
+```powershell
+powershell -NoProfile
+cd "C:\path\to\TAI-REPO"
+node server.js
+```
+
+### Option B: allow scripts only for this terminal session
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+cd "C:\path\to\TAI-REPO"
+node server.js
+```
+
+### Option C: use Command Prompt instead of PowerShell
+```cmd
+cd C:\path\to\TAI-REPO
+node server.js
+```
+
+If `cd` fails, locate where you saved the project first:
+
+```powershell
+Get-ChildItem -Path C:\Users\josia -Directory -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq "TAI-REPO" }
+```
+
+Then use that full path with `cd`.
+
 ## Scoring logic
 Phone score is based on your waking day:
 - Baseline is **45 minutes per waking hour** (`75%` of waking hours)
