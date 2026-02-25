@@ -2,40 +2,41 @@
 
 A browser app that combines WHOOP metrics and phone usage into one daily score out of 100.
 
-## What changed in scoring
-The phone component is now based on:
-1. **When you wake**
-2. **When you go to bed**
-3. **What % of your waking day is spent on phone**
+## Quick start (I implemented this for you)
+You now have a built-in local API server (`server.js`) so you can run everything end-to-end right away.
 
-Baseline for phone usage is set to **45 minutes per waking hour**.
+```bash
+node server.js
+```
 
-- Baseline share = `45 / 60 = 0.75` => **75% of waking hours**
-- Actual share = `totalPhoneHours / wakingHours`
-- If actual share is above baseline, the phone score drops.
-- A social-media penalty signal is blended into the phone score so social-heavy usage still scores lower.
+Then open: `http://localhost:8787`
 
-## Inputs used for scoring
-- Wake time (`HH:MM`)
-- Bed time (`HH:MM`)
-- WHOOP Recovery (%)
-- WHOOP Sleep Performance (%)
-- WHOOP Day Strain (0-21)
-- Social media screen time (hours)
-- Other screen time (hours)
+Use **Use local demo endpoints** in the app, then click **Sync connected data**.
 
-## Final score weights
+## Scoring logic
+Phone score is based on your waking day:
+- Baseline is **45 minutes per waking hour** (`75%` of waking hours)
+- Actual phone share = `totalPhoneHours / wakingHours`
+- Above-baseline usage reduces phone score
+- Social-heavy usage also reduces score via social penalty signal
+
+Final weight mix:
 - Recovery: 35%
 - Sleep: 25%
-- Strain balance: 20% (best around strain 13)
-- Phone behavior score (waking-day share + social penalty): 20%
+- Strain: 20%
+- Phone behavior: 20%
 
-## Auto-sync (no manual entry)
-The app supports syncing from two endpoints:
-- WHOOP endpoint
-- Phone usage endpoint
+## Local API endpoints (included)
+`server.js` now serves these endpoints:
 
-### WHOOP endpoint expected JSON
+- `GET /api/whoop/today`
+- `GET /api/screentime/today`
+- `POST /api/ingest/whoop`
+- `POST /api/ingest/screentime`
+- `GET /api/debug/latest`
+
+## Data formats
+### WHOOP payload (for ingest + sync output)
 ```json
 {
   "recovery": 82,
@@ -46,7 +47,7 @@ The app supports syncing from two endpoints:
 }
 ```
 
-### Phone endpoint expected JSON
+### Screen-time payload (for ingest + sync output)
 ```json
 {
   "socialHours": 3.1,
@@ -54,22 +55,55 @@ The app supports syncing from two endpoints:
 }
 ```
 
-If auth is needed, add your token in the UI. The app sends:
+## “Do the data instructions” — exact steps
+This section is the concrete setup workflow you asked for.
 
-`Authorization: Bearer <token>`
+### 1) Start your local app + API
+```bash
+node server.js
+```
 
-## How to connect your real data (step-by-step)
-1. **Create a tiny personal API endpoint** (Cloudflare Worker, Vercel Function, Railway, etc.).
-2. **WHOOP data**: call WHOOP developer API in your backend and map fields to:
-   - `recovery`, `sleepPerformance`, `dayStrain`, `wakeTime`, `bedTime`.
-3. **Phone data**:
-   - iOS: use Shortcuts automation to read Screen Time and POST daily values to your backend.
-   - Android: use Digital Wellbeing export + automation app (Tasker/HTTP action) to POST daily values.
-4. Have your backend expose two read endpoints:
-   - `/whoop/today`
-   - `/screentime/today`
-5. Paste those two URLs in this app, optionally paste token, click **Save source settings**.
-6. Click **Sync connected data** to fill values and calculate automatically.
+### 2) Post WHOOP data (manual test)
+```bash
+curl -X POST http://localhost:8787/api/ingest/whoop \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "recovery": 86,
+    "sleepPerformance": 81,
+    "dayStrain": 12.9,
+    "wakeTime": "07:00",
+    "bedTime": "23:00"
+  }'
+```
 
-## Run locally
-Open `index.html` directly in your browser.
+### 3) Post phone screen-time data (manual test)
+```bash
+curl -X POST http://localhost:8787/api/ingest/screentime \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "socialHours": 3.2,
+    "otherHours": 2.7
+  }'
+```
+
+### 4) Verify combined stored data
+```bash
+curl http://localhost:8787/api/debug/latest
+```
+
+### 5) In the UI
+- click **Use local demo endpoints**
+- click **Sync connected data**
+- score is calculated from synced data automatically
+
+## Connecting real WHOOP + phone data
+Keep this app exactly as-is, and replace data posting with automations:
+
+1. Create a tiny backend job (or script) that fetches WHOOP API data and POSTs normalized JSON to `/api/ingest/whoop`.
+2. Create iOS/Android automation that sends daily screen-time totals to `/api/ingest/screentime`.
+3. Keep frontend sync URLs pointed at:
+   - `http://<your-host>/api/whoop/today`
+   - `http://<your-host>/api/screentime/today`
+
+## Security note
+This starter server is for local/personal use. If deploying publicly, add auth and HTTPS before exposing ingest endpoints.

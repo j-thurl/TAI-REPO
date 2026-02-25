@@ -20,12 +20,12 @@
         </p>
         <label>
           WHOOP endpoint URL
-          <input type="url" id="whoopEndpoint" placeholder="https://your-service.example.com/whoop/today" />
+          <input type="url" id="whoopEndpoint" placeholder="http://localhost:8787/api/whoop/today" />
         </label>
 
         <label>
           Phone usage endpoint URL
-          <input type="url" id="screenEndpoint" placeholder="https://your-service.example.com/screentime/today" />
+          <input type="url" id="screenEndpoint" placeholder="http://localhost:8787/api/screentime/today" />
         </label>
 
         <label>
@@ -36,6 +36,7 @@
         <div class="button-row">
           <button type="button" id="syncButton">Sync connected data</button>
           <button type="button" id="saveSources" class="secondary">Save source settings</button>
+          <button type="button" id="useLocalSources" class="secondary">Use local demo endpoints</button>
         </div>
         <p id="sync-status" class="hint" aria-live="polite"></p>
       </section>

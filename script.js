@@ -91,6 +91,7 @@ const screenEndpointNode = document.getElementById("screenEndpoint");
 const apiTokenNode = document.getElementById("apiToken");
 const syncButton = document.getElementById("syncButton");
 const saveSourcesButton = document.getElementById("saveSources");
+const useLocalSourcesButton = document.getElementById("useLocalSources");
 
 const wakeTimeNode = document.getElementById("wakeTime");
 const bedTimeNode = document.getElementById("bedTime");
@@ -119,6 +120,15 @@ function saveSourceSettings() {
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   syncStatus.textContent = "Saved data source settings locally in this browser.";
+}
+
+
+function useLocalEndpoints() {
+  const base = `${window.location.protocol}//${window.location.host}`;
+  whoopEndpointNode.value = `${base}/api/whoop/today`;
+  screenEndpointNode.value = `${base}/api/screentime/today`;
+  saveSourceSettings();
+  syncStatus.textContent = "Set local demo endpoints. Click Sync connected data.";
 }
 
 function loadSourceSettings() {
@@ -268,6 +278,7 @@ function calculateScore(event) {
 }
 
 saveSourcesButton.addEventListener("click", saveSourceSettings);
+useLocalSourcesButton.addEventListener("click", useLocalEndpoints);
 syncButton.addEventListener("click", syncConnectedData);
 form.addEventListener("submit", calculateScore);
 
